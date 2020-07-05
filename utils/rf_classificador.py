@@ -1,0 +1,49 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Wed Apr 22 10:06:24 2020
+
+@author: 1052668570
+"""
+
+import joblib
+import numpy as np
+import warnings
+warnings.filterwarnings("ignore", category=RuntimeWarning)
+
+da_cls = joblib.load("models/RandomForest_da.sav")
+mec_cls = joblib.load("models/RandomForest_mec.sav")
+# print(f"classifier loaded")
+da_sc = joblib.load("models/sc_da.sav")
+mec_sc = joblib.load("models/sc_mec.sav")
+
+#clasificar_estado(medicion[da_vars], medicion[mec_vars])
+
+def clasificar_estado(*args):
+    estados = []
+    # print(type(medicion))
+    # for each process measures
+    for arg in args:
+        # print(arg.shape)
+        x = arg.values
+        length = x.shape[1]
+        # print(length)
+        
+        # Transform data
+        x = x.reshape(-1, length)
+        # print(x.shape)
+        
+        if length == 6:
+            # print('da cls', length)
+            x = da_sc.transform(x)
+            x = np.nan_to_num(x)
+            # print(f"x after sc: {x}")
+            estados.append(da_cls.predict(x))
+        else:
+            # print('mec cls', length)
+            x = mec_sc.transform(x)
+            x = np.nan_to_num(x)
+            # print(f"x after sc: {x}")
+            estados.append(mec_cls.predict(x))
+
+    return estados
+

@@ -1,0 +1,4 @@
+raw_files/
+.pylint.d/
+__pycache__
+OOP_TEST
