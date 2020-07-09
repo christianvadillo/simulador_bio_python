@@ -30,10 +30,8 @@ django_names = {'Variable_Dil1_Entrada':'da_dil1',
                 'Variable_imec_Salida': 'mec_imec',
                 'Variable_QH2_Salida': 'mec_qh2',
                 }
-                
 
-      
-      
+
 def onto_get_var_limits():
     da_vars = {}
     mec_vars = {}
@@ -53,13 +51,11 @@ def onto_get_var_limits():
                 mec_vars[django_names[var.get_name()]] = {'min': var.tieneValorMinimo,
                                            'max': var.tieneValorMaximo}
 #                print(var.esVariableDe[0].get_name())
-                
         except Exception as e:
             print("None", e)
-    
     return da_vars, mec_vars
 
-         
+
 def update_onto_limits(var_boundaries):
 #    print("Updating boundaries")
 #    print(var_boundaries)
@@ -67,8 +63,8 @@ def update_onto_limits(var_boundaries):
     new_world = owlready2.World()
     # Loading our ontologia
     onto = new_world.get_ontology(onto_dir_path).load()
-    
-    # Updating DA variables 
+
+    # Updating DA variables
     onto.Variable_Dil1_Entrada.tieneValorMinimo = float(var_boundaries.loc['min']['da_dil1'])
     onto.Variable_AGV_Entrada.tieneValorMinimo = float(var_boundaries.loc['min']['da_agv_in'])
     onto.Variable_DQO_Entrada.tieneValorMinimo = float(var_boundaries.loc['min']['da_dqo_in'])
@@ -81,8 +77,8 @@ def update_onto_limits(var_boundaries):
     onto.Variable_Biomasa_Salida.tieneValorMaximo = float(var_boundaries.loc['max']['da_biomasa_x'])
     onto.Variable_DQO_Salida.tieneValorMaximo = float(var_boundaries.loc['max']['da_dqo_out'])
     onto.Variable_AGV_Salida.tieneValorMaximo = float(var_boundaries.loc['max']['da_agv_out'])
-    
-    # Updating MEC variables 
+
+    # Updating MEC variables
     onto.Variable_Dil2_Entrada.tieneValorMinimo = float(var_boundaries.loc['min']['mec_dil2'])
     onto.Variable_Eapp_Entrada.tieneValorMinimo = float(var_boundaries.loc['min']['mec_eapp'])
     onto.Variable_Ace_Salida.tieneValorMinimo = float(var_boundaries.loc['min']['mec_ace'])
@@ -101,14 +97,13 @@ def update_onto_limits(var_boundaries):
     onto.Variable_mox_Salida.tieneValorMaximo = float(var_boundaries.loc['max']['mec_mox'])
     onto.Variable_imec_Salida.tieneValorMaximo = float(var_boundaries.loc['max']['mec_imec'])
     onto.Variable_QH2_Salida.tieneValorMaximo = float(var_boundaries.loc['max']['mec_qh2'])
-    
-    onto.save(onto_dir_path, format = "rdfxml")
-    
+
+    onto.save(onto_dir_path, format="rdfxml")
+
     print("limits updated")
     print()
 
-    
-    
+
 def get_top_status(proceso):
     try:
         estados = proceso.tieneEstado
@@ -393,20 +388,20 @@ def get_clean_individuals_list(proceso, property_):
 
 
 def reasoner(data):
-    print("Inside OntoParser-Reasoner")
+    # print("Inside OntoParser-Reasoner")
     # creating a new world to isolate the reasoning results
     new_world = owlready2.World()
     # Loading our ontologia
     onto = new_world.get_ontology(onto_dir_path).load()
     # Creating individuals of Lectura that will be used by the rules
-    onto.Variable_Dil1_Entrada.tieneValorPropuesto = float(data.da_dil1)
+    onto.Variable_Dil1_Entrada.tieneValorPropuesto = float(data.da_dil)
     onto.Lectura_AGV_Entrada.tieneValorCensado = float(data.da_agv_in)
     onto.Lectura_DQO_Entrada.tieneValorCensado = float(data.da_dqo_in)
-    onto.Lectura_Biomasa_Salida.tieneValorCensado = float(data.da_biomasa_x)
+    onto.Lectura_Biomasa_Salida.tieneValorCensado = float(data.da_biomasa)
     onto.Lectura_DQO_Salida.tieneValorCensado = float(data.da_dqo_out)
     onto.Lectura_AGV_Salida.tieneValorCensado = float(data.da_agv_out)
-    onto.Variable_Dil2_Entrada.tieneValorPropuesto = float(data.mec_dil2)
-    onto.Lectura_Ace_Salida.tieneValorCensado = float(data.mec_ace)
+    onto.Variable_Dil2_Entrada.tieneValorPropuesto = float(data.mec_dil)
+    onto.Lectura_Ace_Salida.tieneValorCensado = float(data.mec_ace_out)
     onto.Lectura_xa_Salida.tieneValorCensado = float(data.mec_xa)
     onto.Lectura_xm_Salida.tieneValorCensado = float(data.mec_xm)
     onto.Lectura_xh_Salida.tieneValorCensado = float(data.mec_xh)

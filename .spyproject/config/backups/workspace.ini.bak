@@ -6,5 +6,5 @@ save_non_project_files = False
 
 [main]
 version = 0.2.0
-recent_files = ['raw_files\\Acoplamiento_Auto.py', 'utils\\utils_func.py', 'utils\\tables.py', 'data_processing.py', 'main.py', 'utils\\rf_classificador.py', 'Proceso.py', 'Biorrefineria.py', 'C:\\users\\1052668570\\appdata\\roaming\\python\\python37\\site-packages\\numpy\\core\\getlimits.py', 'C:\\users\\1052668570\\appdata\\roaming\\python\\python37\\site-packages\\numpy\\core\\fromnumeric.py']
+recent_files = ['Proceso.py', 'Variable.py', 'Biorrefineria.py', 'main.py', 'utils\\tables.py', 'utils\\rf_classificador.py', 'classifier_pipeline.py', 'utils\\utils_func.py']
 
