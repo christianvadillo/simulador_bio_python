@@ -6,8 +6,7 @@ Created on Wed Jul  1 11:35:26 2020
 """
 import os
 import matplotlib.pyplot as plt
-import numpy as np
-import timeit
+import time
 
 from Biorrefineria import Biorrfineria
 from Proceso import ProcesoDA, ProcesoMEC
@@ -28,7 +27,7 @@ if not os.path.exists(path):
 # =============================================================================
 
 
-def main(noise=False):
+def main(dias=3600, noise=False, failures=False):
     # DA Variables definition
     dil_da = Variable(name='da_dil', vals=0.6, units="$d^{-1}$",
                       desc="Tasa de dilución: Entrada(DA)")
@@ -67,7 +66,7 @@ def main(noise=False):
                    desc="Flujo de Hidrógeno: Salida(MEC)")
 
     bio = Biorrfineria('bio1')
-    bio.set_time(300)  # Set simulation days
+    bio.set_time(dias)  # Set simulation days
 
     # Create Process and add variables
     da = ProcesoDA('da')
@@ -94,21 +93,27 @@ def main(noise=False):
     # Add process to bio
     bio.add_proceso([da, mec])
 
-    da_acc, mec_acc = bio.simulate(noise=noise, failures=True, batch_size=1)
+    da_acc, mec_acc = bio.simulate(noise=noise, failures=failures,
+                                   batch_size=1)
 
     return bio, da_acc, mec_acc
 
+# bio, da_acc, mec_acc = main(dias=360, noise=True, failures=True)
+for _ in range(5):
+    start_time = time.time()
+    bio, da_acc, mec_acc = main(dias=3600, noise=True, failures=True)
+    print("--- %s seconds ---" % (time.time() - start_time))
+    print("--- %s min ---" % ((time.time() - start_time)/60))
 
-bio, da_acc, mec_acc = main(noise=True)
 
 # print(timeit.Timer(main).timeit(number=3))
 # Done 106.4159195000002 seg
 
 
-plt.figure()
-plt.plot(da_acc, '.-', label='DA', c='red')
-plt.plot(mec_acc, '.-', label='MEC', c='blue')
-plt.legend()
+# plt.figure()
+# plt.plot(da_acc, '.-', label='DA', c='red')
+# plt.plot(mec_acc, '.-', label='MEC', c='blue')
+# plt.legend()
 
 # for var in bio.procesos['da'].variables:
 #     var.plot()

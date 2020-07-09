@@ -9,7 +9,7 @@ import numpy as np
 import datetime as dt
 import json
 
-# import matplotlib.pyplot as plt
+from numba import njit, typeof
 from scipy.integrate import odeint
 from utils import ontoParser as op
 from utils.rf_classificador import clasificar_estado
@@ -119,7 +119,8 @@ class Biorrfineria:
         print('da anomalies:', fails_count_da)
         print('mec anomalies', fails_count_mec)
 
-    def int_ode15s(self, T, function, cond_ini):
+    @staticmethod
+    def int_ode15s(T, function, cond_ini, *args):
         # The ``driver`` that will integrate the ODE(s)
         try:
             t0, t1 = T              # start and end
@@ -127,12 +128,12 @@ class Biorrfineria:
             y0 = cond_ini               # initial values
             y = np.zeros((len(t), len(y0)))   # array for solution
             y[0, :] = y0
-            sol = odeint(func=function, y0=y0, t=t)
+            sol = odeint(func=function, y0=y0, t=t, args=args)
             # print(y0.shape)
             # print(sol.shape)
             return (t, sol)
-        except Exception as e:
-            print("No more values", e)
+        except Exception:
+            print("No more values")
             return 0
 
     def simulate(self, noise=False, failures=False, batch_size=1):
@@ -148,7 +149,6 @@ class Biorrfineria:
         """
 
         if batch_size == 1:
-            print(batch_size)
             batch_size = self.lt-1
         start = 0
         end = 0
@@ -166,18 +166,30 @@ class Biorrfineria:
                     draw = np.random.choice(range(2), 1, p=[0.999, 0.001])
                     if draw == 1:
                         self.procesos['da'].add_random_noise()
+                        
+                ############################################################
                 # Integrate solver: DA
+                ############################################################
+                dil = self.procesos['da'].input_vars[0].vals[i]
+                agv_in = self.procesos['da'].input_vars[1].vals[i]
+                dqo_in = self.procesos['da'].input_vars[2].vals[i]
+                
                 t1out, x1out = self.int_ode15s(
                     self.time[i+0:i+2:1],
                     self.procesos['da'].ode,
-                    self.procesos['da'].sim_outputs[:, i]
+                    self.procesos['da'].sim_outputs[:, i],
+                    dil,
+                    agv_in,
+                    dqo_in
                     )
                 # To update dqo_in position for the next iteration
                 self.procesos['da'].i += 1
                 # Save the integration results
                 self.procesos['da'].sim_outputs[:, i+1] = x1out[-1, :]
 
+                ############################################################
                 # Integrate solver: MEC
+                ############################################################
                 # If not previous noise injected
                 if self.procesos['mec'].input_vars[0].vals[i] == 0:
                     # pass da_agv_out*PMAce to mec_agv_in as input
@@ -194,10 +206,17 @@ class Biorrfineria:
                         if draw == 1:
                             self.procesos['mec'].add_random_noise()
 
+                agv_in = self.procesos['mec'].input_vars[0].vals[i]
+                dil = self.procesos['mec'].input_vars[1].vals[i]
+                eapp = self.procesos['mec'].input_vars[2].vals[i]
+
                 t2out, x2out = self.int_ode15s(
                     self.time[i+0:i+2:1],
                     self.procesos['mec'].ode,
-                    self.procesos['mec'].sim_outputs[:, i]
+                    self.procesos['mec'].sim_outputs[:, i],
+                    agv_in,
+                    dil,
+                    eapp
                     )
                 # Save the integration results
                 self.procesos['mec'].sim_outputs[:, i+1] = x2out[-1, :]
@@ -208,7 +227,7 @@ class Biorrfineria:
             if failures:
                 da_acc[batch], mec_acc[batch] = self.detect_failures(start,
                                                                      end)
-                self.recommender(start, end)
+                # self.recommender(start, end)
 
         # Fixing last values for agv_in_da and qh2_mec
         self.procesos['da'].update_outputs_variables()
@@ -220,4 +239,3 @@ class Biorrfineria:
         # print('\nDone')
 
         return da_acc, mec_acc
-

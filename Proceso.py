@@ -6,7 +6,12 @@ Created on Sun Jun 28 08:43:59 2020
 """
 import numpy as np
 import pandas as pd
+
+from numba import njit
 from utils.tables import MIN_MAX_DEFINED
+
+def _add_noise(vars_):
+    pass
 
 
 class Proceso:
@@ -26,9 +31,11 @@ class Proceso:
         self.input_vars = np.append(self.input_vars, vars_)
         self.variables = np.append(self.variables, self.input_vars)
 
+
     def set_output_vars(self, vars_):
         self.output_vars = np.append(self.output_vars, vars_)
         self.variables = np.append(self.variables, self.output_vars)
+
 
     def ode():
         pass
@@ -46,27 +53,31 @@ class Proceso:
         vars_ = np.random.choice(self.input_vars, size=num_of_vars,
                                  replace=False)
         for var in vars_:
-          print(f'{self.name}: Adding noise to {var.name}')
-          amount_of_noise = np.random.randint(1, 168)
-          try:
-            if var.name == 'mec_agv_in':
-              std = np.random.uniform(10, 20, 1)
-              noise = np.random.randn(amount_of_noise) * std
-              var.vals[self.i:self.i+amount_of_noise] = noise + var.vals[self.i-2]
-            else:
-              std = np.random.uniform(0, 5, 1)
-              noise = np.random.randn(amount_of_noise) * std
-              # Dealing with negatives by reducing them
-              noise[np.where(noise < 0)[0]] = noise[np.where(noise < 0)[0]] * 0.1
-              var.vals[self.i:self.i+amount_of_noise] += noise  # Adding the noise
-          except Exception as e:
-            print('Action not completed', e)
+            # print(f'{self.name}: Adding noise to {var.name}')
+            amount_of_noise = np.random.randint(1, 168)
+            try:
+                if var.name == 'mec_agv_in':
+                    std = np.random.uniform(10, 20, 1)
+                    noise = np.random.randn(amount_of_noise) * std
+                    var.vals[self.i:self.i+amount_of_noise] = noise +\
+                        var.vals[self.i-2]
+                else:
+                    std = np.random.uniform(0, 5, 1)
+                    noise = np.random.randn(amount_of_noise) * std
+                    # Dealing with negatives by reducing them
+                    noise[np.where(noise < 0)[0]] = noise[
+                        np.where(noise < 0)[0]
+                        ] * 0.1
+                    # Adding the noise
+                    var.vals[self.i:self.i+amount_of_noise] += noise
+            except Exception as e:
+                print('Action not completed', e)
 
     def update_outputs_variables(self):
-      """ set the final simulation output values to the correspond 
-      variable array """
-      for idx, var in enumerate(self.output_vars):
-        var.vals = self.sim_outputs[idx, :]
+        """ set the final simulation output values to the correspond
+        variable array """
+        for idx, var in enumerate(self.output_vars):
+            var.vals = self.sim_outputs[idx, :]
 
     def get_batch_data(self, s, e):
         """
@@ -75,7 +86,7 @@ class Proceso:
         * The dimensions will be the number of variables in the process plus 1
         (the label colum).
         * Then the final shape will be (batch_size, n_cols + 1)
-  
+
         The classifier except data in the following order:
             ( [dil, agv_in, dqo_in, biomasa, dqo_out, agv_out],
               [agv_in, dil, eapp, xa, xm, xh, mox, imec, qh2] )
@@ -91,13 +102,15 @@ class Proceso:
         rowErrors = np.zeros(df.shape[1])
 
         for i, row in enumerate(df):
-          for j, value in enumerate(row):
-            if value < MIN_MAX_DEFINED["min"][self.variables[j].name]:
-                rowErrors[j] = MIN_MAX_DEFINED["ErrorMin"][self.variables[j].name]
-            if value > MIN_MAX_DEFINED["max"][self.variables[j].name]:
-                rowErrors[j] = MIN_MAX_DEFINED["ErrorMax"][self.variables[j].name]
-          labels[i] = 1 if rowErrors.sum() else 0
-          rowErrors = np.zeros(df.shape[1])
+            for j, value in enumerate(row):
+                if value < MIN_MAX_DEFINED["min"][self.variables[j].name]:
+                    rowErrors[j] =\
+                        MIN_MAX_DEFINED["ErrorMin"][self.variables[j].name]
+                if value > MIN_MAX_DEFINED["max"][self.variables[j].name]:
+                    rowErrors[j] =\
+                        MIN_MAX_DEFINED["ErrorMax"][self.variables[j].name]
+            labels[i] = 1 if rowErrors.sum() else 0
+            rowErrors = np.zeros(df.shape[1])
 
         return df, labels
 
@@ -107,53 +120,57 @@ class Proceso:
               last column is the labels for the failure state."""
         inp_stack = [var.vals.reshape(-1, 1) for var in self.input_vars]
         df = np.hstack((np.hstack(inp_stack), self.sim_outputs.T))
-        
+
         if self.name == 'da':
-          df[:, -1] = df[:, -1] * self.PMAce  # agv_out conversion
+            df[:, -1] = df[:, -1] * self.PMAce  # agv_out conversion
 
         # Get labels
         labels = np.zeros(df.shape[0])
         rowErrors = np.zeros(df.shape[1])
 
         for i, row in enumerate(df):
-          for j, value in enumerate(row):
-            if value < MIN_MAX_DEFINED["min"][self.variables[j].name]:
-                rowErrors[j] = MIN_MAX_DEFINED["ErrorMin"][self.variables[j].name]
-            if value > MIN_MAX_DEFINED["max"][self.variables[j].name]:
-                rowErrors[j] = MIN_MAX_DEFINED["ErrorMax"][self.variables[j].name]
-          labels[i] = 1 if rowErrors.sum() else 0
-          rowErrors = np.zeros(df.shape[1])
+            for j, value in enumerate(row):
+                if value < MIN_MAX_DEFINED["min"][self.variables[j].name]:
+                    rowErrors[j] =\
+                        MIN_MAX_DEFINED["ErrorMin"][self.variables[j].name]
+                if value > MIN_MAX_DEFINED["max"][self.variables[j].name]:
+                    rowErrors[j] =\
+                        MIN_MAX_DEFINED["ErrorMax"][self.variables[j].name]
+            labels[i] = 1 if rowErrors.sum() else 0
+            rowErrors = np.zeros(df.shape[1])
 
         cols = [var.name for var in self.variables]
         df = pd.DataFrame(data=df,
                           columns=cols)
         df.set_index(pd.date_range(end='2020-06-29',
-                                      periods=len(df), 
-                                      freq='H'), inplace=True)
+                                   periods=len(df),
+                                   freq='H'), inplace=True)
         df['labels'] = labels
         df.to_csv(path)
-        print(f'{self.name}: data saved in {path}')   
+        print(f'{self.name}: data saved in {path}')
 
         return df
 
     def __str__(self):
         return f"Proceso {self.__name}"
 
+
 class ProcesoDA(Proceso):
     def __init__(self, name):
         super(ProcesoDA, self).__init__(name)
         self.PMAce = 60.052  # gr/mol - Peso molecular del Acetato
-    
-    def ode(self, x, t):
+
+    @staticmethod
+    @njit
+    def ode(x, t, *args):
+
         # print(f'inside ode-da: {x}')
         # print(f'inside ode-da: {t}')
         # print(self.i)
 
-        #'input_vars = [0:dil, 1:agv_in, 2:dqo_in]'
-        #'x = [0:biomasa, 1:dqo_out, 2:agv_out]'
-        dil = self.input_vars[0].vals[self.i]
-        agv_in = self.input_vars[1].vals[self.i]
-        dqo_in = self.input_vars[2].vals[self.i]
+        dil = args[0]
+        agv_in = args[1]
+        dqo_in = args[2]
 
         biomasa = x[0]
         dqo_out = x[1]
@@ -186,7 +203,7 @@ class ProcesoDA(Proceso):
 
         # Modelo de la disgestión anaerobia
         dX1 = - alpha * dil * biomasa + u1 * biomasa
-        dS1 = dqo_in * dil -  dqo_out * dil - u1 * biomasa
+        dS1 = dqo_in * dil - dqo_out * dil - u1 * biomasa
         dS2 = agv_in * dil - agv_out * dil + k2k1 * u1 * biomasa
 
         # dZ1 = (Z1 - x(3))*D
@@ -216,19 +233,25 @@ class ProcesoMEC(Proceso):
         self.muh = (self.umaxh * self.H2) / (self.Kh + self.H2)
 
     def update_qh2(self):
-      '[0:ace_out, 1:xa, 2:xm, 3:xh ,4:mox, 5:imec, 6:qh2]'
-      self.sim_outputs[-1, self.i] = self.YH2 * (
-          (self.sim_outputs[-2, self.i] * self.R2 * self.T)/(self.m * self.F1 * self.P)
-          ) - self.Yh * self.muh * self.V * self.sim_outputs[3, self.i] / 1000
+        # '[0:ace_out, 1:xa, 2:xm, 3:xh ,4:mox, 5:imec, 6:qh2]'
+        self.sim_outputs[-1, self.i] = self.YH2 * (
+            (self.sim_outputs[-2, self.i] * self.R2 * self.T) /
+            (self.m * self.F1 * self.P)
+            ) - self.Yh * self.muh * self.V * self.sim_outputs[3, self.i] / 1000
 
-
-    def ode(self, x, t, *args):
+    @staticmethod
+    @njit
+    def ode(x, t, *args):
         # print(x)
         # print("agv_in {}:".format(self.input_vars[0].vals[self.i]))
-        ## 'input_vars=[0:agv_in, 1:dil, 2:eaap]'
-        dil = self.input_vars[1].vals[self.i]
-        agv_in = self.input_vars[0].vals[self.i]
-        
+        # # 'input_vars=[0:agv_in, 1:dil, 2:eaap]'
+        # dil = self.input_vars[1].vals[self.i]
+        # agv_in = self.input_vars[0].vals[self.i]
+
+        agv_in = args[0]
+        dil = args[1]
+        eapp = args[2]
+
         A = x[0]
         xa = x[1]
         xm = x[2]
@@ -258,24 +281,25 @@ class ProcesoMEC(Proceso):
         F1 = F/(60.0*60.0*24.0)           # A d mol-e^-1
         # YM = 34.85                 # mg-M/mg-A --> modificado
         YM = 3.3
-        Yh = 0.05                     # mLH2/mgX/d
-        Xmax1 = 512.5               # mg L^-1
-        Xmax2 = (1680.0+750.0)/2.0        # mg L^-1 
+        # Yh = 0.05                     # mLH2/mgX/d
+        # Xmax1 = 512.5               # mg L^-1
+        # Xmax2 = (1680.0+750.0)/2.0        # mg L^-1
         Mtotal = 1000.0               # mgM mg x^-1
         beta = 0.5
         AsA = 0.01                  # m^2
         # io =.005                   # Am^-2
         io = 1.0
         E_CEF = -0.35               # V
-        E_app = self.input_vars[2].vals[self.i]               # Fuente de alimentación Default= .5 V == 500mv
-        # Si E_app está en 0, existe una falla) Por encima de 10 V, igual hay falla
+        E_app = eapp   # Default= .5 V == 500mv
+        # Si E_app está en 0, existe una falla)
+        # Por encima de 10 V, igual hay falla
         # Rmin = 20
         Rmin = 2.0
         # Rmax = 2000
         Rmax = 200.0
         KR = .024
         R = 8.314                   # J mol^-1 K^-1
-        R1 = 82.05                  # mL atm mol^-1 K^-1
+        # R1 = 82.05                  # mL atm mol^-1 K^-1
         T = 298.15                  # K
 
         # Ecuaciones cinéticas
@@ -293,7 +317,7 @@ class ProcesoMEC(Proceso):
         Mred = Mtotal - Mox
         #    print("Mtotal:{}".format(Mtotal))
         #    print("Mred:{}".format(Mred))
-        #    print("xa:{}".format(xa)) 
+        #    print("xa:{}".format(xa))
         Rint = Rmin + (Rmax - Rmin) * np.exp(- KR * xa)
         etha_concA = ((R * T) / (m * F)) * np.log(Mtotal / Mred)
         etha_actC = ((R * T)/(beta * m * F)) * np.arcsinh(Imec / (AsA * io))
@@ -309,4 +333,3 @@ class ProcesoMEC(Proceso):
         dMox = ((gamma*Imec)/(Vr*xa*m*F1)) - YM*qa
 
         return np.array([dS, dXa, dXm, dXh, dMox, (corriente - Imec), qh2])
-

@@ -8,6 +8,7 @@ Created on Wed Apr 22 10:06:24 2020
 import joblib
 import numpy as np
 import warnings
+# from numba import njit
 warnings.filterwarnings("ignore", category=RuntimeWarning)
 
 # da_cls = joblib.load("models/RandomForest_da.sav")
@@ -20,7 +21,7 @@ mec_cls = joblib.load("models/mec_rf_model_7_jul.joblib")
 
 # clasificar_estado(medicion[da_vars], medicion[mec_vars])
 
-
+# @njit
 def clasificar_estado(*args):
     estados = []
 
