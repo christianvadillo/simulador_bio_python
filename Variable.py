@@ -28,7 +28,7 @@ plt.ion()
 
 class Variable:
     """ It model a variable for a process.
-        As features, a Variable have:
+        As features one Variable have:
           * name,
           * values [time dependent],
           * unit metric,
@@ -37,20 +37,20 @@ class Variable:
           * description """
     _ids = count(0)  # to count instances
 
-    def __init__(self, name, vals, units='', min=0, max=0, desc=''):
+    def __init__(self, name, vals, units='', min_=0, max_=0, desc=''):
         assert isinstance(name, str), "name must be a string"
         assert isinstance(vals, Number), "vals must be an array of numbers"
         assert isinstance(units, str), "units must be a string"
-        assert isinstance(min, Number), "min must be a number"
-        assert isinstance(max, Number), "max must be a number"
+        assert isinstance(min_, Number), "min must be a number"
+        assert isinstance(max_, Number), "max must be a number"
         assert isinstance(desc, str), "desc must be a string"
 
         self.id = next(self._ids)
         self.name = name
         self.vals = vals
         self.units = units
-        self.min = min
-        self.max = max
+        self.min = min_
+        self.max = max_
         self.desc = desc
 
     def initialize_var(self, time, noise=False, sd=0.001):
@@ -58,6 +58,7 @@ class Variable:
         If noise is set, it will add normal noise with mean vals
         and standard dev. sd.
         If noise is False, it will repeat vals lt times"""
+        print(f'Initializing {self.name}')
         lt = len(time)
         if noise:
             if self.name == 'da_dqo_in':
@@ -84,8 +85,8 @@ class Variable:
             else:
                 self.vals = np.repeat(self.vals, lt)
 
-            self.set_min()
-            self.set_max()
+        self.set_min()
+        self.set_max()
 
     def set_min(self, min=None):
         """ It set the min value for the variable.
@@ -113,16 +114,28 @@ class Variable:
                 print("Setting max to 0", e)
                 self.max = 0
 
-    def plot(self):
+    def plot(self, limits=False, log_scale=False):
         """ To plot the values of the variable """
+
+        min_defined = self.min
+        max_defined = self.max
+
+        plt.figure(self.id)
+        plt.plot(self.vals)
         plt.figure(self.id)
         plt.plot(self.vals)
         plt.ylabel(self.units)
-        plt.xlabel('Time (d)')
+        plt.xlabel('Tiempo (Hr)')
         plt.title(self.desc)
         plt.grid()
+        if limits:
+            plt.ylim(min_defined-max_defined, max_defined*1.10)
+            plt.hlines(max_defined, 0, len(self.vals), linestyles='-.', color='red', linewidth=1)
+            plt.hlines(min_defined, 0, len(self.vals), linestyles='-.', color='red', linewidth=1)
         plt.tight_layout()
         plt.show()
 
     def __str__(self):
         return f'Variable: {self.name}'
+
+

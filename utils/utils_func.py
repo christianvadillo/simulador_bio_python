@@ -32,7 +32,7 @@ def plot_var(TT, data, number, title, ylabel, dias=3600, valor=0, limits=False):
         min_defined = MIN_MAX_DEFINED["min"][table_names(number)]
         max_defined = MIN_MAX_DEFINED["max"][table_names(number)]
         y_min_limit = min_defined
-        y_max_limit =  max_defined
+        y_max_limit = max_defined
     
         plt.figure()
         plt.plot(TT, data)

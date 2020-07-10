@@ -8,14 +8,25 @@ import numpy as np
 import pandas as pd
 
 from numba import njit
-from utils.tables import MIN_MAX_DEFINED
 
 def _add_noise(vars_):
     pass
 
 
 class Proceso:
+    """ It model a process that use ordinary differential equations (ODE)
+    to simulate a specific behaviour.
+        As features one Variable have:
+          * name,
+          * sim_outputs np.array,
+          * variables np.array of Variables objects,
+          * input_vars np.array of Variables objects,
+          * output_vars np.array of Variables objects,
+      """
+
     def __init__(self, name='Proceso'):
+        assert isinstance(name, str), "name must be a string"
+
         self.__name = name
         self.i = 0
         self.sim_outputs = np.array([])
@@ -28,34 +39,53 @@ class Proceso:
         return self.__name
 
     def set_input_vars(self, vars_):
+        """ Define the inputs of type Variable for the process 
+              Arguments:
+              * vars_: list []
+        """
         self.input_vars = np.append(self.input_vars, vars_)
         self.variables = np.append(self.variables, self.input_vars)
 
-
     def set_output_vars(self, vars_):
+        """ Define the outputs of type Variable for the process 
+              Arguments:
+              * vars_: list []
+        """
         self.output_vars = np.append(self.output_vars, vars_)
         self.variables = np.append(self.variables, self.output_vars)
-
 
     def ode():
         pass
 
     def initialize_outputs(self, tt):
-        """ Set initial values of the outputs to the sim_outputs array """
+        """  Set initial values of the outputs to the sim_outputs array used
+        for initialize the ode integration
+              Arguments:
+              * tt: array of timesteps 
+        """
         print(f'{self.name}: Initializing outputs for simulation')
         lt = len(tt)
         self.sim_outputs = np.zeros((len(self.output_vars), lt))
-        self.sim_outputs[:, 0] = [x.vals for x in self.output_vars]
+        self.sim_outputs[:, 0] = [x.vals[0] for x in self.output_vars]
 
     def add_random_noise(self):
+        """  Add random noise using a normal distribution to a n variables 
+        selected randomly. It use self.i to determine at which point will start 
+        to add the noise
+              Arguments:
+              * self
+        """
+        var_list = self.input_vars
         amount_of_noise = 0
-        num_of_vars = np.random.randint(0, len(self.input_vars))
-        vars_ = np.random.choice(self.input_vars, size=num_of_vars,
+        num_of_vars = np.random.randint(0, len(var_list))
+        vars_ = np.random.choice(var_list, size=num_of_vars,
                                  replace=False)
+        # Add noise to the selected vars
         for var in vars_:
             # print(f'{self.name}: Adding noise to {var.name}')
             amount_of_noise = np.random.randint(1, 168)
             try:
+                # Add bigger noise to agv_in
                 if var.name == 'mec_agv_in':
                     std = np.random.uniform(10, 20, 1)
                     noise = np.random.randn(amount_of_noise) * std
@@ -97,21 +127,16 @@ class Proceso:
         if self.name == 'da':
             df[:, -1] = df[:, -1] * self.PMAce  # agv_out conversion
 
-        # Get labels
+        # Get labels [0, 1]
         labels = np.zeros(df.shape[0])
-        rowErrors = np.zeros(df.shape[1])
+        vars_min = np.array([var.min for var in self.variables])
+        vars_max = np.array([var.max for var in self.variables])
 
         for i, row in enumerate(df):
-            for j, value in enumerate(row):
-                if value < MIN_MAX_DEFINED["min"][self.variables[j].name]:
-                    rowErrors[j] =\
-                        MIN_MAX_DEFINED["ErrorMin"][self.variables[j].name]
-                if value > MIN_MAX_DEFINED["max"][self.variables[j].name]:
-                    rowErrors[j] =\
-                        MIN_MAX_DEFINED["ErrorMax"][self.variables[j].name]
-            labels[i] = 1 if rowErrors.sum() else 0
-            rowErrors = np.zeros(df.shape[1])
-
+            are_below_min = np.any(row < vars_min)
+            are_above_max = np.any(row > vars_max)
+            # 1 or 0
+            labels[i] = are_below_min | are_above_max
         return df, labels
 
     def save_data(self, path):
@@ -126,18 +151,14 @@ class Proceso:
 
         # Get labels
         labels = np.zeros(df.shape[0])
-        rowErrors = np.zeros(df.shape[1])
+        vars_min = np.array([var.min for var in self.variables])
+        vars_max = np.array([var.max for var in self.variables])
 
         for i, row in enumerate(df):
-            for j, value in enumerate(row):
-                if value < MIN_MAX_DEFINED["min"][self.variables[j].name]:
-                    rowErrors[j] =\
-                        MIN_MAX_DEFINED["ErrorMin"][self.variables[j].name]
-                if value > MIN_MAX_DEFINED["max"][self.variables[j].name]:
-                    rowErrors[j] =\
-                        MIN_MAX_DEFINED["ErrorMax"][self.variables[j].name]
-            labels[i] = 1 if rowErrors.sum() else 0
-            rowErrors = np.zeros(df.shape[1])
+            are_below_min = np.any(row < vars_min)
+            are_above_max = np.any(row > vars_max)
+            # 1 or 0
+            labels[i] = are_below_min | are_above_max
 
         cols = [var.name for var in self.variables]
         df = pd.DataFrame(data=df,
@@ -163,6 +184,13 @@ class ProcesoDA(Proceso):
     @staticmethod
     @njit
     def ode(x, t, *args):
+        """ Ordinary differential equation (ODE) for Process DA.
+            Arguments:
+              * X : [biomasa, dqo_out, agv_out]
+                t : timesteps
+                args: [dil, agv_in, dqo_in]
+            Returns:
+              np.array([new_biomasa, new_dqo_out, new_agv_out]) """
 
         # print(f'inside ode-da: {x}')
         # print(f'inside ode-da: {t}')
@@ -233,7 +261,10 @@ class ProcesoMEC(Proceso):
         self.muh = (self.umaxh * self.H2) / (self.Kh + self.H2)
 
     def update_qh2(self):
-        # '[0:ace_out, 1:xa, 2:xm, 3:xh ,4:mox, 5:imec, 6:qh2]'
+        """ Calculate qh2 at iteration i with the new parameters
+             calculated on the Odes
+        """
+        # sim_outputs[0:ace_out, 1:xa, 2:xm, 3:xh ,4:mox, 5:imec, 6:qh2]'
         self.sim_outputs[-1, self.i] = self.YH2 * (
             (self.sim_outputs[-2, self.i] * self.R2 * self.T) /
             (self.m * self.F1 * self.P)
@@ -242,12 +273,14 @@ class ProcesoMEC(Proceso):
     @staticmethod
     @njit
     def ode(x, t, *args):
-        # print(x)
-        # print("agv_in {}:".format(self.input_vars[0].vals[self.i]))
-        # # 'input_vars=[0:agv_in, 1:dil, 2:eaap]'
-        # dil = self.input_vars[1].vals[self.i]
-        # agv_in = self.input_vars[0].vals[self.i]
-
+        """ Ordinary differential equation (ODE) for Process DA.
+              Arguments:
+                  X : [biomasa, dqo_out, agv_out]
+                  t : timesteps
+                  args: [dil, agv_in, dqo_in]
+              Returns:
+        np.array([new_ace_oute, new_xa, new_xm, new_xh, new_Mox, new_imec, qh2])
+                   """
         agv_in = args[0]
         dil = args[1]
         eapp = args[2]

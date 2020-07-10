@@ -21,7 +21,7 @@ mec_cls = joblib.load("models/mec_rf_model_7_jul.joblib")
 
 # clasificar_estado(medicion[da_vars], medicion[mec_vars])
 
-# @njit
+
 def clasificar_estado(*args):
     estados = []
 
