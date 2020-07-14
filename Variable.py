@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 
 from itertools import count
 from numbers import Number
-from utils.tables import MIN_MAX_DEFINED
+# from utils.tables import MIN_MAX_DEFINED
 
 plt.style.use('grayscale')
 mpl.rcParams['lines.linewidth'] = 0.7
@@ -88,30 +88,30 @@ class Variable:
         self.set_min()
         self.set_max()
 
-    def set_min(self, min=None):
+    def set_min(self, min_=None):
         """ It set the min value for the variable.
           If value is not passed, it will take the min from MIN_MAX_DEFINED
           table, if MIN_MAX_DEFINED does not exist, the min will set to 0 """
-        if min:
-            self.min = min
+        if min_:
+            self.min = min_
         else:
             try:
                 self.min = MIN_MAX_DEFINED["min"][self.name]
             except Exception as e:
-                print("Setting min to 0", e)
-                self.min = 0
+                print("Setting min to inf. Error:", e)
+                self.min = float(np.inf)
 
-    def set_max(self, max=None):
+    def set_max(self, max_=None):
         """ It set the max value for the variable.
           If value is not passed, it will take the max from MIN_MAX_DEFINED
           table, if MIN_MAX_DEFINED does not exist, the max will set to 0 """
-        if max:
-            self.max = max
+        if max_:
+            self.max = max_
         else:
             try:
                 self.max = MIN_MAX_DEFINED["max"][self.name]
             except Exception as e:
-                print("Setting max to 0", e)
+                print("Setting max to 0 Error:", e)
                 self.max = 0
 
     def plot(self, limits=False, log_scale=False):

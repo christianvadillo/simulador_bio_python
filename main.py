@@ -28,7 +28,7 @@ if not os.path.exists(path):
 # =============================================================================
 
 
-def main(dias=3600, noise=False, failures=False):
+def main(dias=3600, noise=False, failures=False, ontology=False):
     # DA Variables definition
     dil_da = Variable(name='da_dil', vals=0.6, units="$d^{-1}$",
                       desc="Tasa de dilución: Entrada(DA)")
@@ -110,8 +110,10 @@ def main(dias=3600, noise=False, failures=False):
     # Add processes to bio
     bio.add_proceso([da, mec])
 
-    da_acc, mec_acc = bio.simulate(noise=noise, failures=failures,
-                                   batch_size=1)
+    da_acc, mec_acc = bio.simulate(noise=noise,
+                                   failures=failures,
+                                   ontology=ontology,
+                                   batch_size=24)
 
     return bio, da_acc, mec_acc
 
@@ -120,7 +122,10 @@ def main(dias=3600, noise=False, failures=False):
 
 for _ in range(5):
     start_time = time.time()
-    bio, da_acc, mec_acc = main(dias=1, noise=True, failures=True)
+    bio, da_acc, mec_acc = main(dias=3600,
+                                noise=True,
+                                failures=True,
+                                ontology=False)
     print("--- %s seconds ---" % (time.time() - start_time))
     print("--- %s min ---" % ((time.time() - start_time)/60))
 

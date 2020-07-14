@@ -23,7 +23,7 @@ class Biorrfineria:
           * time : number of days to simulate (int),
           * lt : total number of timesteps given the days of simulation,
     """
-    
+
     def __init__(self, name):
         self.__name = name
         self.procesos = dict()
@@ -47,7 +47,7 @@ class Biorrfineria:
                 dias : total days of simulation (int)
         """
         assert isinstance(dias, int), "dias must be a integer"
-        
+
         # 24 samples for day
         self.time = np.arange(0, dias, .041666)
         self.lt = len(self.time)
@@ -87,6 +87,13 @@ class Biorrfineria:
         # Call Random Forest model
         predict = clasificar_estado(da_inputs, mec_inputs)
 
+        # Update limits for onto vars
+        if not predict[0].any():
+            da.update_limits(da_inputs)
+        if not predict[1].any():
+            mec.update_limits(mec_inputs)
+
+
         # Calculate accuracy
         n_correct_da += (da_targets == predict[0]).sum()
         n_correct_mec += (mec_targets == predict[1]).sum()
@@ -105,7 +112,8 @@ class Biorrfineria:
             mec_targets,
             labels=[0, 1]
             ).ravel()
-
+        
+        print('-'*20)
         print(f'Accuracy         | da: {da_acc:.3f},\
         mec: {mec_acc:.3f}')
         print(f'Normal state| da: {da_tn}({(da_tn/n_total_da)*100:.3f}%), \
@@ -116,6 +124,7 @@ class Biorrfineria:
         mec: {mec_fn}({(mec_fn/n_total_mec)*100:.3f}%) ')
         print(f'False positives: | da: {da_fp}({(da_fp/n_total_da)*100:.3f}%),\
         mec: {mec_fp}({(mec_fp/n_total_mec)*100:.3f}%) ')
+        print('-'*20)
         print()
         return da_acc, mec_acc
 
@@ -133,29 +142,19 @@ class Biorrfineria:
         da_inputs, _ = da.get_batch_data(start, end)
         mec_inputs, _ = mec.get_batch_data(start, end)
 
-
         df = np.concatenate([da_inputs, mec_inputs], axis=1)
 
-        fails_count_da = 0
-        fails_count_mec = 0
         for row in df:
             # Call the Pellet reasoner
-            processes_state, onto = op.reasoner(row)
-            processes_state = json.loads(processes_state)
-
-            fails_count_da += 1 if 'Falla' == processes_state[0]['estado'] else 0
-            fails_count_da += 1 if 'Falla-Riesgo' == processes_state[0]['estado'] else 0
-            fails_count_mec += 1 if 'Falla' == processes_state[2]['estado'] else 0
-            fails_count_mec += 1 if 'Falla-Riesgo' == processes_state[2]['estado'] else 0
-
-            # print('da:', fails_count_da)
-            # print(processes_state[0]['estado'])
-            # print('mec:', fails_count_mec)
-            # print(processes_state[2]['estado'])
-        print('da anomalies:', fails_count_da)
-        print('mec anomalies', fails_count_mec)
-        print('-'*10)
-        
+            states, _ = op.reasoner(row)
+            states = json.loads(states)
+            print('-'*10)
+            print(states)
+            da_onto_pred = 1 if 1 in states[0]['estado_code'] else 0
+            mec_onto_pred = 1 if 1 in states[2]['estado_code'] else 0
+            print(da_onto_pred)
+            print(mec_onto_pred)
+            print('-'*10)
 
     @staticmethod
     def int_ode15s(T, function, cond_ini, *args):
@@ -179,7 +178,7 @@ class Biorrfineria:
             print("No more values")
             return 0
 
-    def simulate(self, noise=False, failures=False, batch_size=1):
+    def simulate(self, noise=False, failures=False, ontology=False, batch_size=1):
         """ It simulate the coupling between DA and MEC processes in batches.
           If no batch_size is passed, by default will simulate run along all
           days defined.
@@ -274,6 +273,7 @@ class Biorrfineria:
                 da_acc[batch], mec_acc[batch] =\
                     self.detect_failures(da, mec, start, end)
 
+            if ontology:
                 self.recommender(da, mec, start, end)
 
         # Fixing last values for agv_in_da and qh2_mec

@@ -54,6 +54,28 @@ class Proceso:
         self.output_vars = np.append(self.output_vars, vars_)
         self.variables = np.append(self.variables, self.output_vars)
 
+    def update_limits(self, data):
+        """ To update ontology limits only if there are not errors present in each
+        process 
+        """        
+        vars_min = np.array([var.min for var in self.variables])
+        vars_max = np.array([var.max for var in self.variables])
+        for i, row in enumerate(data):
+            are_below_min = row < vars_min
+            are_above_max = row > vars_max
+
+            if np.any(are_below_min):
+                pos = np.where(are_below_min)
+                for p in pos:
+                    self.variables[p[0]].set_min(min_=row[p[0]])
+                    print(f'{self.name}: min value for {self.variables[p[0]]} updated to {row[p[0]]}')
+
+            if np.any(are_above_max):
+                pos = np.where(are_above_max)
+                for p in pos:
+                    self.variables[p[0]].set_max(max_=row[p[0]])
+                    print(f'{self.name}: max value for {self.variables[p[0]]} updated to {row[p[0]]}')
+
     def ode():
         pass
 
