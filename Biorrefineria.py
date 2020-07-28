@@ -4,7 +4,7 @@ Created on Wed Jul  1 08:28:58 2020
 
 @author: 1052668570
 """
-import pandas as pd
+# import pandas as pd
 import numpy as np
 import datetime as dt
 import json
@@ -13,6 +13,7 @@ from scipy.integrate import odeint
 from utils import ontoParser as op
 from utils.rf_classificador import clasificar_estado
 from sklearn.metrics import confusion_matrix
+from Proceso import Proceso
 
 
 class Biorrfineria:
@@ -24,24 +25,27 @@ class Biorrfineria:
           * lt : total number of timesteps given the days of simulation,
     """
 
-    def __init__(self, name):
+    def __init__(self, name: str) -> None:
+        assert isinstance(name, str), 'name must be a string'
         self.__name = name
         self.procesos = dict()
         self.time = np.array([])
         self.lt = 0
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.__name}"
 
-    def add_proceso(self, proceso: list()):
+    def add_proceso(self, proceso: list) -> None:
         """ Set the processes used in the simulation """
+        assert isinstance(proceso, (list, Proceso)), 'proceso must be a list\
+            of Proceso objects or a Proceso object'
         try:
             for p in proceso:
                 self.procesos[p.name] = p
         except Exception as e:
             print("Expected [Proceso,], got {proceso}", e)
 
-    def set_time(self, dias: int):
+    def set_time(self, dias: int) -> None:
         """ Define the time given the days of simulation.
               Arguments:
                 dias : total days of simulation (int)
@@ -52,11 +56,12 @@ class Biorrfineria:
         self.time = np.arange(0, dias, .041666)
         self.lt = len(self.time)
 
-    def save_data(self, path=''):
+    def save_data(self, path: str) -> None:
         """ Save the simulation data of each process.
               Arguments:
                 path : path for save the csv files (str)
         """
+        assert isinstance(path, str), "path must be a string"
         dfs = []
         time = dt.datetime.now().strftime('%d_%b_%Y_%H_%M_%S')
         for p in self.procesos.values():
@@ -65,7 +70,8 @@ class Biorrfineria:
         return dfs
 
     @staticmethod
-    def detect_failures(da, mec, start, end):
+    def detect_failures(da: Proceso, mec: Proceso,
+                        start: int, end: int) -> (int, int):
         """ To detect anomaly states on each process using a Random Forest
         model.
             Arguments:
@@ -75,7 +81,11 @@ class Biorrfineria:
                 end  : final position to detect errors
 
         """
-
+        assert isinstance(da, Proceso), 'DA must be a Proceso object'
+        assert isinstance(mec, Proceso), 'MEC must be a Proceso object'
+        assert isinstance(start, int), 'start must be an integer'
+        assert isinstance(end, int), 'end must be an integer'
+        
         n_correct_da = n_correct_mec = n_total_da = n_total_mec = 0
         da_acc = mec_acc = 0
         da_tn = da_fp = da_fn = da_tp = 0
@@ -92,7 +102,6 @@ class Biorrfineria:
             da.update_limits(da_inputs)
         if not predict[1].any():
             mec.update_limits(mec_inputs)
-
 
         # Calculate accuracy
         n_correct_da += (da_targets == predict[0]).sum()
@@ -112,7 +121,7 @@ class Biorrfineria:
             mec_targets,
             labels=[0, 1]
             ).ravel()
-        
+
         print('-'*20)
         print(f'Accuracy         | da: {da_acc:.3f},\
         mec: {mec_acc:.3f}')
@@ -129,7 +138,8 @@ class Biorrfineria:
         return da_acc, mec_acc
 
     @staticmethod
-    def recommender(da, mec, start, end):
+    def recommender(da: object, mec: object,
+                        start: int, end: int) -> None:
         """ To detect anomaly states on each process using an ontology model and
         a Pellet reasoner.
         It also extract new information about the process and variables
@@ -138,6 +148,11 @@ class Biorrfineria:
                   end  : final position to detect errors
 
         """
+        assert isinstance(da, Proceso), 'DA must be a Proceso object'
+        assert isinstance(mec, Proceso), 'MEC must be a Proceso object'
+        assert isinstance(start, int), 'start must be an integer'
+        assert isinstance(end, int), 'end must be an integer'
+        
         # Get the chunk of data in the range [start, end]
         da_inputs, _ = da.get_batch_data(start, end)
         mec_inputs, _ = mec.get_batch_data(start, end)
@@ -178,7 +193,8 @@ class Biorrfineria:
             print("No more values")
             return 0
 
-    def simulate(self, noise=False, failures=False, ontology=False, batch_size=1):
+    def simulate(self, noise=False, failures=False,
+                 ontology=False, batch_size=1) -> (np.ndarray, np.ndarray):
         """ It simulate the coupling between DA and MEC processes in batches.
           If no batch_size is passed, by default will simulate run along all
           days defined.
@@ -189,6 +205,10 @@ class Biorrfineria:
           * If failures is passed, it will detect anomalies on each process
           at certain time defined by batch_size.
         """
+        assert isinstance(noise, bool), 'noise must be a boolean'
+        assert isinstance(failures, bool), 'failures must be a boolean'
+        assert isinstance(ontology, bool), 'ontology must be a boolean'
+        assert isinstance(batch_size, int), 'batch_size must be an integer'
 
         if batch_size == 1:
             batch_size = self.lt-1
@@ -201,11 +221,27 @@ class Biorrfineria:
 
         da = self.procesos['da']
         mec = self.procesos['mec']
+
+        # To improve speed
         choice = np.random.choice
+        da_ode = da.ode
+        da_dil = da.input_vars[0].vals
+        da_agv_in = da.input_vars[1].vals
+        da_dqo_in = da.input_vars[2].vals
+        PMAce = da.PMAce
+
+        mec_ode = mec.ode
+        mec_agv_in = mec.input_vars[0].vals
+        mec_dil = mec.input_vars[1].vals
+        mec_eapp = mec.input_vars[2].vals
 
         for batch in range(n_batch):
             start = batch_size * batch
             end = batch_size * (batch+1)
+            if end > self.lt-1:
+                print('end > lt')
+                end = self.lt
+
             for i in range(start, end):
                 if noise:
                     # # Add random noise to da
@@ -216,17 +252,13 @@ class Biorrfineria:
                 ############################################################
                 # Integrate solver: DA
                 ############################################################
-                dil = da.input_vars[0].vals[i]
-                agv_in = da.input_vars[1].vals[i]
-                dqo_in = da.input_vars[2].vals[i]
-
                 t1out, x1out = self.int_ode15s(
                     self.time[i+0:i+2:1],
-                    da.ode,
+                    da_ode,
                     da.sim_outputs[:, i],
-                    dil,
-                    agv_in,
-                    dqo_in
+                    da_dil[i],
+                    da_agv_in[i],
+                    da_dqo_in[i]
                     )
                 # To get correctly the batch_data inside processes
                 da.i += 1
@@ -237,12 +269,11 @@ class Biorrfineria:
                 # Integrate solver: MEC
                 ############################################################
                 # If not previous noise injected
-                if mec.input_vars[0].vals[i] == 0:
+                if mec_agv_in[i] == 0:
                     # pass da_agv_out*PMAce to mec_agv_in as input
                     # input_vars=[0:agv_in, 1:dil, 2:eapp]
                     # sim_outputs=[0:biomasa, 1:dqo_out, 2:agv_out].T
-                    mec.input_vars[0].vals[i] =\
-                        da.sim_outputs[2, i] * da.PMAce
+                    mec_agv_in[i] = da.sim_outputs[2, i] * PMAce
 
                     if noise:
                         # # Add random noise to MEC
@@ -250,17 +281,13 @@ class Biorrfineria:
                         if draw == 1:
                             mec.add_random_noise()
 
-                agv_in = mec.input_vars[0].vals[i]
-                dil = mec.input_vars[1].vals[i]
-                eapp = mec.input_vars[2].vals[i]
-
                 t2out, x2out = self.int_ode15s(
                     self.time[i+0:i+2:1],
-                    mec.ode,
+                    mec_ode,
                     mec.sim_outputs[:, i],
-                    agv_in,
-                    dil,
-                    eapp
+                    mec_agv_in[i],
+                    mec_dil[i],
+                    mec_eapp[i]
                     )
                 # Save the integration results
                 mec.sim_outputs[:, i+1] = x2out[-1, :]
@@ -276,11 +303,11 @@ class Biorrfineria:
             if ontology:
                 self.recommender(da, mec, start, end)
 
-        # Fixing last values for agv_in_da and qh2_mec
+        # Fixing last values wich are 0 for agv_in_mec and qh2_mec
         da.update_outputs_variables()
         mec.update_outputs_variables()
-        mec.input_vars[0].vals[-1] = mec.input_vars[0].vals[-2]
-        mec.output_vars[-1].vals[-1] = mec.output_vars[-1].vals[-2]
+        mec.input_vars[0].vals[-2:] = mec.input_vars[0].vals[-3]
+        mec.output_vars[-1].vals[-2:] = mec.output_vars[-1].vals[-3]
         # print('\nDone')
 
         return da_acc, mec_acc

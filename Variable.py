@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 
 from itertools import count
 from numbers import Number
-# from utils.tables import MIN_MAX_DEFINED
+from utils.tables import MIN_MAX_DEFINED
 
 plt.style.use('grayscale')
 mpl.rcParams['lines.linewidth'] = 0.7
@@ -37,7 +37,8 @@ class Variable:
           * description """
     _ids = count(0)  # to count instances
 
-    def __init__(self, name, vals, units='', min_=0, max_=0, desc=''):
+    def __init__(self, name: str, vals: int, units='',
+                 min_=0, max_=0, desc='') -> None:
         assert isinstance(name, str), "name must be a string"
         assert isinstance(vals, Number), "vals must be an array of numbers"
         assert isinstance(units, str), "units must be a string"
@@ -53,11 +54,14 @@ class Variable:
         self.max = max_
         self.desc = desc
 
-    def initialize_var(self, time, noise=False, sd=0.001):
+    def initialize_var(self, time: np.ndarray, noise=False, sd=0.001) -> None:
         """ Transfrom vals from numeric to a numpy array of size lt.
         If noise is set, it will add normal noise with mean vals
         and standard dev. sd.
         If noise is False, it will repeat vals lt times"""
+        
+        assert isinstance(time, np.ndarray), 'time must be an array'
+        
         print(f'Initializing {self.name}')
         lt = len(time)
         if noise:
@@ -88,10 +92,11 @@ class Variable:
         self.set_min()
         self.set_max()
 
-    def set_min(self, min_=None):
+    def set_min(self, min_=None) -> None:
         """ It set the min value for the variable.
           If value is not passed, it will take the min from MIN_MAX_DEFINED
           table, if MIN_MAX_DEFINED does not exist, the min will set to 0 """
+          
         if min_:
             self.min = min_
         else:
@@ -101,10 +106,11 @@ class Variable:
                 print("Setting min to inf. Error:", e)
                 self.min = float(np.inf)
 
-    def set_max(self, max_=None):
+    def set_max(self, max_=None) -> None:
         """ It set the max value for the variable.
           If value is not passed, it will take the max from MIN_MAX_DEFINED
           table, if MIN_MAX_DEFINED does not exist, the max will set to 0 """
+          
         if max_:
             self.max = max_
         else:
@@ -114,7 +120,7 @@ class Variable:
                 print("Setting max to 0 Error:", e)
                 self.max = 0
 
-    def plot(self, limits=False, log_scale=False):
+    def plot(self, limits=False, log_scale=False) -> None:
         """ To plot the values of the variable """
 
         min_defined = self.min
@@ -135,7 +141,7 @@ class Variable:
         plt.tight_layout()
         plt.show()
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f'Variable: {self.name}'
 
 

@@ -6,8 +6,10 @@ Created on Sun Jun 28 08:43:59 2020
 """
 import numpy as np
 import pandas as pd
+from Variable import Variable
 
 from numba import njit
+
 
 def _add_noise(vars_):
     pass
@@ -24,7 +26,7 @@ class Proceso:
           * output_vars np.array of Variables objects,
       """
 
-    def __init__(self, name='Proceso'):
+    def __init__(self, name='Proceso') -> None:
         assert isinstance(name, str), "name must be a string"
 
         self.__name = name
@@ -35,29 +37,35 @@ class Proceso:
         self.output_vars = np.array([])
 
     @property
-    def name(self):
+    def name(self) -> str:
         return self.__name
 
-    def set_input_vars(self, vars_):
+    def set_input_vars(self, vars_: list) -> None:
         """ Define the inputs of type Variable for the process 
               Arguments:
               * vars_: list []
         """
+        assert isinstance(vars_, (list, Variable)),"Not a variable"
+
         self.input_vars = np.append(self.input_vars, vars_)
         self.variables = np.append(self.variables, self.input_vars)
 
-    def set_output_vars(self, vars_):
+    def set_output_vars(self, vars_: list) -> None:
         """ Define the outputs of type Variable for the process 
               Arguments:
               * vars_: list []
         """
+        assert isinstance(vars_, (list, Variable)),"Not a variable"
+        
         self.output_vars = np.append(self.output_vars, vars_)
         self.variables = np.append(self.variables, self.output_vars)
 
-    def update_limits(self, data):
+    def update_limits(self, data: pd.DataFrame) -> None:
         """ To update ontology limits only if there are not errors present in each
-        process 
-        """        
+        process
+        """   
+        assert isinstance(data, pd.DataFrame),"Not a dataframe"
+        
         vars_min = np.array([var.min for var in self.variables])
         vars_max = np.array([var.max for var in self.variables])
         for i, row in enumerate(data):
@@ -79,18 +87,19 @@ class Proceso:
     def ode():
         pass
 
-    def initialize_outputs(self, tt):
+    def initialize_outputs(self, tt: np.ndarray) -> None:
         """  Set initial values of the outputs to the sim_outputs array used
         for initialize the ode integration
               Arguments:
               * tt: array of timesteps 
         """
+        assert isinstance(tt, np.ndarray),"Not a np.array"
         print(f'{self.name}: Initializing outputs for simulation')
         lt = len(tt)
         self.sim_outputs = np.zeros((len(self.output_vars), lt))
         self.sim_outputs[:, 0] = [x.vals[0] for x in self.output_vars]
 
-    def add_random_noise(self):
+    def add_random_noise(self) -> None:
         """  Add random noise using a normal distribution to a n variables 
         selected randomly. It use self.i to determine at which point will start 
         to add the noise
@@ -125,13 +134,14 @@ class Proceso:
             except Exception as e:
                 print('Action not completed', e)
 
-    def update_outputs_variables(self):
+    def update_outputs_variables(self) -> None:
         """ set the final simulation output values to the correspond
         variable array """
         for idx, var in enumerate(self.output_vars):
+            self.sim_outputs[idx, -1] = self.sim_outputs[idx, -2]
             var.vals = self.sim_outputs[idx, :]
 
-    def get_batch_data(self, s, e):
+    def get_batch_data(self, s: int, e: int) -> (np.ndarray, np.ndarray):
         """
         * Get the chunk with labels (0, 1) to use it in the classifier.
         * The data returned will have the length of batch_size (start, end).
@@ -143,6 +153,9 @@ class Proceso:
             ( [dil, agv_in, dqo_in, biomasa, dqo_out, agv_out],
               [agv_in, dil, eapp, xa, xm, xh, mox, imec, qh2] )
         """
+        assert isinstance(s, int), "s must be a integer"
+        assert isinstance(e, int), "e must be a integer"
+        
         inp_stack = [var.vals[s:e].reshape(-1, 1) for var in self.input_vars]
         df = np.hstack((np.hstack(inp_stack), self.sim_outputs.T[s:e]))
 
@@ -161,26 +174,14 @@ class Proceso:
             labels[i] = are_below_min | are_above_max
         return df, labels
 
-    def save_data(self, path):
+    def save_data(self, path: str) -> pd.DataFrame:
         """ Save the simulation data for each process in one pandas.DataFrame,
             * In which each column is a variable of the process and
               last column is the labels for the failure state."""
-        inp_stack = [var.vals.reshape(-1, 1) for var in self.input_vars]
-        df = np.hstack((np.hstack(inp_stack), self.sim_outputs.T))
 
-        if self.name == 'da':
-            df[:, -1] = df[:, -1] * self.PMAce  # agv_out conversion
+        assert isinstance(path, str), "path must be a string"
 
-        # Get labels
-        labels = np.zeros(df.shape[0])
-        vars_min = np.array([var.min for var in self.variables])
-        vars_max = np.array([var.max for var in self.variables])
-
-        for i, row in enumerate(df):
-            are_below_min = np.any(row < vars_min)
-            are_above_max = np.any(row > vars_max)
-            # 1 or 0
-            labels[i] = are_below_min | are_above_max
+        df, labels = self.get_batch_data(0, len(self.sim_outputs[0, :]))
 
         cols = [var.name for var in self.variables]
         df = pd.DataFrame(data=df,
@@ -194,18 +195,20 @@ class Proceso:
 
         return df
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"Proceso {self.__name}"
 
 
 class ProcesoDA(Proceso):
-    def __init__(self, name):
+    def __init__(self, name: str) -> None:
+        assert isinstance(name, str), "name must be a string"
+
         super(ProcesoDA, self).__init__(name)
         self.PMAce = 60.052  # gr/mol - Peso molecular del Acetato
 
     @staticmethod
     @njit
-    def ode(x, t, *args):
+    def ode(x: np.ndarray, t: np.ndarray, *args) -> np.ndarray:
         """ Ordinary differential equation (ODE) for Process DA.
             Arguments:
               * X : [biomasa, dqo_out, agv_out]
@@ -264,7 +267,8 @@ class ProcesoDA(Proceso):
 
 
 class ProcesoMEC(Proceso):
-    def __init__(self, name, **kwargs):
+    def __init__(self, name: str) -> None:
+        assert isinstance(name, str), "name must be a string"
         super(ProcesoMEC, self).__init__(name)
 
         # For QH2 calcuations
@@ -282,7 +286,7 @@ class ProcesoMEC(Proceso):
         self.umaxh = 0.5
         self.muh = (self.umaxh * self.H2) / (self.Kh + self.H2)
 
-    def update_qh2(self):
+    def update_qh2(self) -> None:
         """ Calculate qh2 at iteration i with the new parameters
              calculated on the Odes
         """
@@ -294,7 +298,7 @@ class ProcesoMEC(Proceso):
 
     @staticmethod
     @njit
-    def ode(x, t, *args):
+    def ode(x: np.ndarray, t: np.ndarray, *args) -> np.ndarray:
         """ Ordinary differential equation (ODE) for Process DA.
               Arguments:
                   X : [biomasa, dqo_out, agv_out]

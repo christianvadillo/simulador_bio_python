@@ -119,19 +119,53 @@ def main(dias=3600, noise=False, failures=False, ontology=False):
 
 
 # bio, da_acc, mec_acc = main(dias=360, noise=True, failures=True)
-
-for _ in range(5):
+times = np.zeros(1)
+for i in range(1):
     start_time = time.time()
     bio, da_acc, mec_acc = main(dias=3600,
-                                noise=True,
-                                failures=True,
+                                noise=False,
+                                failures=False,
                                 ontology=False)
-    print("--- %s seconds ---" % (time.time() - start_time))
-    print("--- %s min ---" % ((time.time() - start_time)/60))
+    end_time = time.time()
+    times[i] = end_time - start_time
+    print("--- %s seconds ---" % (times[i]))
+    print("--- %s min ---" % ((times[i])/60))
 
+df_da, df_mec = bio.save_data(path)
+# matlab_run = np.array([355.931666 ,
+# 314.129656 ,
+# 304.245377 ,
+# 310.033032 ,
+# 313.979148 ,
+# 315.724433 ,
+# 311.426489 ,
+# 313.131862 ,
+# 315.687116 ,
+# 314.887149]
+# )
 
-# print(timeit.Timer(main).timeit(number=3))
-# Done 106.4159195000002 seg
+# import pandas as pd
+# times_df = pd.DataFrame(data=times, columns=['python_run_time_seg'])
+# times_df['matlab_run_time_seg'] = matlab_run
+# print(times_df.to_latex())
+
+# da_values_avg_df = pd.DataFrame(data=np.zeros((3,3)),
+#                                 columns=['variable', 'python_avg', 'matlab_avg'])
+
+# da_values_avg_df['variable'] = ['biomasa', 'dqo_out', 'agv_out']
+# da_values_avg_df['python_avg'] = bio.procesos['da'].sim_outputs.mean(axis=1)
+# da_values_avg_df['matlab_avg'] = [59.9596, 14.2128, 140.9430]
+
+# print(da_values_avg_df.to_latex())
+
+# mec_values_avg_df = pd.DataFrame(data=np.zeros((7,3)),
+#                                 columns=['variable', 'python_avg', 'matlab_avg'])
+
+# mec_values_avg_df['variable'] = ['agv_out', 'xa', 'xm', 'xh', 'mox', 'imec', 'qh2']
+# mec_values_avg_df['python_avg'] = bio.procesos['mec'].sim_outputs.mean(axis=1)
+# mec_values_avg_df['matlab_avg'] = [5.6907e+03, 732.0475, 0.0266, 0.0114, 0.1013, 0.0462, 0.4554]
+
+# print(mec_values_avg_df.to_latex())
 
 
 # plt.figure()
@@ -139,11 +173,12 @@ for _ in range(5):
 # plt.plot(mec_acc, '.-', label='MEC', c='blue')
 # plt.legend()
 
-# for var in bio.procesos['da'].variables:
-#     var.plot(limits=False)
+print(df_mec.tail(2).T)
+for var in bio.procesos['da'].variables:
+     var.plot(limits=False)
 
-# for var in bio.procesos['mec'].variables:
-#     var.plot()
+for var in bio.procesos['mec'].variables:
+    var.plot()
 
 # df_da, df_mec = bio.save_data(path)
 # plt.figure(figsize=(12, 6))
@@ -156,3 +191,4 @@ for _ in range(5):
 #             c=df_mec['labels'], cmap='viridis_r', marker='o')
 # plt.grid()
 
+bio.procesos['da'].sim_outputs[:, -2]
