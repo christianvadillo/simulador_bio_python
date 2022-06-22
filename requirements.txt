@@ -4,7 +4,7 @@ kiwisolver==1.2.0
 llvmlite==0.33.0
 matplotlib==3.3.0
 numba==0.50.1
-numpy==1.19.1
+numpy==1.22.0
 Owlready2==0.24
 pandas==1.1.0
 Pillow==8.1.1
